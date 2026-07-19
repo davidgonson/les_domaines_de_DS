@@ -620,6 +620,24 @@ function logActivity(action,domaine,label,concernsPresta,forAdmin,rid){
   if(!D.activityLog)D.activityLog=[];
   D.activityLog.push({id:gid(),ts:Date.now(),authorId:S.admin?S.admin.id:null,authorName:S.admin?S.admin.name:(S.presta?S.presta.name:'Système'),domaine,action,label,concernsPresta:concernsPresta||[],forAdmin:!!forAdmin,rid:rid||null});
   if(D.activityLog.length>200)D.activityLog=D.activityLog.slice(-200);
+  triggerPushNotification(action,label,concernsPresta);
+}
+/* Envoie une vraie notification push (via la fonction Supabase "send-push") aux personnes
+   concernées, en respectant les mêmes règles de confidentialité que la bannière interne :
+   - jamais à soi-même (on ne se notifie pas de ses propres actions) ;
+   - les infos de paiement/montant ne partent jamais vers les prestataires. */
+function triggerPushNotification(action,label,concernsPresta){
+  try{
+    const selfId=S.admin?S.admin.id:(S.presta?S.presta.id:null);
+    let recipientIds=['a1','a2'].filter(id=>id!==selfId);
+    if(action!=='paiement')recipientIds=recipientIds.concat(concernsPresta||[]);
+    if(!recipientIds.length)return;
+    fetch(`${SUPA_URL}/functions/v1/send-push`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json',apikey:SUPA_KEY},
+      body:JSON.stringify({title:'Les Domaines de DS',body:label,url:'/',tag:'ds-update',recipientIds,excludeSubscriberId:selfId})
+    }).catch(()=>{}); // si la fonction n'est pas encore déployée, on n'interrompt jamais l'app pour autant
+  }catch(e){}
 }
 function dismissAdminNotifs(){if(!S.admin)return;D.adminLastSeen=D.adminLastSeen||{};D.adminLastSeen[S.admin.id]=Date.now();saveD();render();}
 function dismissPrestaNotifs(){if(!S.presta)return;D.prestaLastSeen=D.prestaLastSeen||{};D.prestaLastSeen[S.presta.id]=Date.now();saveD();render();}
@@ -1724,7 +1742,7 @@ function renderAdmin(){
   else if(S.tab==='clientsExport')content=renderClientsExport();
   const lastSeen=(D.adminLastSeen||{})[S.admin.id]||0;
   const notifs=(D.activityLog||[]).filter(it=>((it.authorId&&it.authorId!==S.admin.id)||it.forAdmin)&&it.ts>lastSeen).sort((a,b)=>b.ts-a.ts);
-  return`<div class="topbar"><span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1.3px solid #993556;border-radius:50%;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;font-size:11px;color:#993556;flex-shrink:0">D.S</span><h1>Les Domaines de DS</h1><span class="badge ba" style="flex-shrink:0">Admin — ${S.admin.name}</span><button class="btn btn-sm" onclick="logout()" style="flex-shrink:0">Déconnexion</button></div>${notifBanner}${S.msg?`<div class="alert alert-ok">${S.msg}</div>`:''}${renderNotifBanner(notifs,'dismissAdminNotifs')}<div class="tabs">${tabs.map(([k,ic,l])=>`<button class="tab ${S.tab===k?'active':''}" onclick="setTab('${k}')"><span class="tab-ic">${ic}</span><span class="tab-lbl">${l}</span></button>`).join('')}</div>${content}${S.modal?renderModalWrap():''}`;
+  return`<div class="topbar"><span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1.3px solid #993556;border-radius:50%;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;font-size:11px;color:#993556;flex-shrink:0">D.S</span><h1>Les Domaines de DS</h1><span class="badge ba" style="flex-shrink:0">Admin — ${S.admin.name}</span><button class="btn btn-sm" onclick="enablePushNotifications()" title="Recevoir des notifications sur ce téléphone" style="flex-shrink:0">🔔</button><button class="btn btn-sm" onclick="logout()" style="flex-shrink:0">Déconnexion</button></div>${notifBanner}${S.msg?`<div class="alert alert-ok">${S.msg}</div>`:''}${renderNotifBanner(notifs,'dismissAdminNotifs')}<div class="tabs">${tabs.map(([k,ic,l])=>`<button class="tab ${S.tab===k?'active':''}" onclick="setTab('${k}')"><span class="tab-ic">${ic}</span><span class="tab-lbl">${l}</span></button>`).join('')}</div>${content}${S.modal?renderModalWrap():''}`;
 }
 
 function renderCalendrier(){
@@ -4146,7 +4164,7 @@ function renderPrestaCalendrierSeul(p){
   const doms=p.domaines||[];
   const notifs=(D.activityLog||[]).filter(it=>doms.includes(it.domaine)&&it.action!=='paiement'&&it.ts>lastSeen).sort((a,b)=>b.ts-a.ts);
   const content=tab==='monbilan'?renderPrestaMonBilanFlat(p):renderCalendrier();
-  return`<div class="topbar"><span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1.3px solid #993556;border-radius:50%;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;font-size:11px;color:#993556;flex-shrink:0">D.S</span><h1>Les Domaines de DS</h1><span class="badge bp">${p.name}</span><button class="btn btn-sm" onclick="logout()">Déconnexion</button></div>
+  return`<div class="topbar"><span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1.3px solid #993556;border-radius:50%;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;font-size:11px;color:#993556;flex-shrink:0">D.S</span><h1>Les Domaines de DS</h1><span class="badge bp">${p.name}</span><button class="btn btn-sm" onclick="enablePushNotifications()" title="Recevoir des notifications sur ce téléphone">🔔</button><button class="btn btn-sm" onclick="logout()">Déconnexion</button></div>
   ${S.msg?`<div class="alert alert-ok">${S.msg}</div>`:''}
   ${renderNotifBanner(notifs,'dismissPrestaNotifs')}
   <div class="tabs">
@@ -4164,7 +4182,7 @@ function renderPrestaReadOnly(p){
   else if(tab==='dernieres')content=renderDernieres();
   else if(tab==='clientsExport')content=renderClientsExport();
   const notifs=[];
-  return`<div class="topbar"><span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1.3px solid #993556;border-radius:50%;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;font-size:11px;color:#993556;flex-shrink:0">D.S</span><h1>Les Domaines de DS</h1><span class="badge bp">${p.name}</span><button class="btn btn-sm" onclick="logout()">Déconnexion</button></div>
+  return`<div class="topbar"><span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1.3px solid #993556;border-radius:50%;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;font-size:11px;color:#993556;flex-shrink:0">D.S</span><h1>Les Domaines de DS</h1><span class="badge bp">${p.name}</span><button class="btn btn-sm" onclick="enablePushNotifications()" title="Recevoir des notifications sur ce téléphone">🔔</button><button class="btn btn-sm" onclick="logout()">Déconnexion</button></div>
   ${S.msg?`<div class="alert alert-ok">${S.msg}</div>`:''}
   <div class="tabs">${tabs.map(([k,ic,l])=>`<button class="tab ${tab===k?'active':''}" onclick="setPrestaTab('${k}')"><span class="tab-ic">${ic}</span><span class="tab-lbl">${l}</span></button>`).join('')}</div>
   ${content}${S.modal?renderModalWrap():''}`;
@@ -4199,7 +4217,7 @@ function renderPrestaFull(p){
   else if(tab==='monbilan')content=renderPrestaMonBilan(p);
   const lastSeen=(D.prestaLastSeen||{})[p.id]||0;
   const notifs=(D.activityLog||[]).filter(it=>(p.domaines||[]).includes(it.domaine)&&it.action!=='paiement'&&it.ts>lastSeen).sort((a,b)=>b.ts-a.ts);
-  return`<div class="topbar"><span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1.3px solid #993556;border-radius:50%;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;font-size:11px;color:#993556;flex-shrink:0">D.S</span><h1>Les Domaines de DS</h1><span class="badge bp">${p.name}</span><button class="btn btn-sm" onclick="logout()">Déconnexion</button></div>
+  return`<div class="topbar"><span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1.3px solid #993556;border-radius:50%;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;font-size:11px;color:#993556;flex-shrink:0">D.S</span><h1>Les Domaines de DS</h1><span class="badge bp">${p.name}</span><button class="btn btn-sm" onclick="enablePushNotifications()" title="Recevoir des notifications sur ce téléphone">🔔</button><button class="btn btn-sm" onclick="logout()">Déconnexion</button></div>
   ${S.msg?`<div class="alert alert-ok">${S.msg}</div>`:''}
   ${renderNotifBanner(notifs,'dismissPrestaNotifs')}
   <div class="tabs">${tabs.map(([k,ic,l])=>`<button class="tab ${tab===k?'active':''}" onclick="setPrestaTab('${k}')"><span class="tab-ic">${ic}</span><span class="tab-lbl">${l}</span></button>`).join('')}</div>
@@ -4333,7 +4351,7 @@ function renderPrestaDominique(p){
       </div>`;}).join('')}
     </div>`;
   } else content=renderCalendrier();
-  return`<div class="topbar"><span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1.3px solid #993556;border-radius:50%;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;font-size:11px;color:#993556;flex-shrink:0">D.S</span><h1>Les Domaines de DS</h1><span class="badge bp">${p.name}</span><button class="btn btn-sm" onclick="logout()">Déconnexion</button></div>
+  return`<div class="topbar"><span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1.3px solid #993556;border-radius:50%;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;font-size:11px;color:#993556;flex-shrink:0">D.S</span><h1>Les Domaines de DS</h1><span class="badge bp">${p.name}</span><button class="btn btn-sm" onclick="enablePushNotifications()" title="Recevoir des notifications sur ce téléphone">🔔</button><button class="btn btn-sm" onclick="logout()">Déconnexion</button></div>
   ${S.msg?`<div class="alert alert-ok">${S.msg}</div>`:''}
   ${renderNotifBanner(notifs,'dismissPrestaNotifs')}
   <div class="tabs">
@@ -5168,6 +5186,54 @@ document.addEventListener('touchend',e=>{
     else if(S.modal)closeM();
   }
 },{passive:true});
+/* Notifications push réelles (arrivent même app fermée). Nécessite que sw.js soit déployé
+   à côté de index.html, et que la fonction Supabase "send-push" soit déployée (voir README). */
+const VAPID_PUBLIC_KEY='BCVpaqTegeF6LJtAGnF23LfFIS99YP2U9TtivSvDu0FpGmqdkHuLrN0110yoZu63N_Vqy0UmhlUz25BAtQsenVU';
+function registerServiceWorker(){
+  if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(()=>{});}
+}
+function urlBase64ToUint8Array(base64String){
+  const padding='='.repeat((4-base64String.length%4)%4);
+  const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  const rawData=atob(base64);
+  const outputArray=new Uint8Array(rawData.length);
+  for(let i=0;i<rawData.length;i++)outputArray[i]=rawData.charCodeAt(i);
+  return outputArray;
+}
+async function enablePushNotifications(){
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)){
+    alert("Les notifications ne sont pas prises en charge sur cet appareil ou ce navigateur.");
+    return;
+  }
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){alert('Notifications refusées. Tu peux les réactiver dans les réglages de ton téléphone (Réglages > Notifications).');return;}
+    const reg=await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)});
+    const ownerId=S.admin?S.admin.id:(S.presta?S.presta.id:null);
+    if(!ownerId)return;
+    const j=sub.toJSON();
+    await fetch(`${SUPA_URL}/rest/v1/push_subscriptions`,{
+      method:'POST',
+      headers:{apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},
+      body:JSON.stringify({owner_id:ownerId,endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth})
+    });
+    showMsg('Notifications activées ✓');render();
+  }catch(e){
+    alert("Impossible d'activer les notifications pour l'instant : "+e.message);
+  }
+}
+async function checkPushEnabled(){
+  try{
+    if(!('serviceWorker' in navigator))return false;
+    const reg=await navigator.serviceWorker.getRegistration();
+    if(!reg)return false;
+    const sub=await reg.pushManager.getSubscription();
+    return!!sub;
+  }catch(e){return false;}
+}
+registerServiceWorker();
 initApp();
 </script>
 </body>
