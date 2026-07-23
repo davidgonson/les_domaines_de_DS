@@ -1219,6 +1219,8 @@ function pickDomaine(hiddenId,pickerId,el){
     if(wrap)wrap.innerHTML=nbFieldsHtml(el.dataset.id,readCurrentNbValues());
     refreshDefaultArrhes();
     refreshDefaultDepot();
+    // Le lieu du gardiennage suit toujours le domaine de la réservation, sans choix séparé.
+    document.querySelectorAll('input[id^="pgdom-"]').forEach(inp=>{inp.value=el.dataset.id;});
   }
 }
 function pickTypeClient(el){
@@ -3763,11 +3765,9 @@ function renderModalContent(){
         </div>`;
       } else if(p.inputMode==='garde'){
         const pg=(r.prestaGarde||{})[p.id]||{};
-        const gDomaine=pg.domaine||(p.domaines&&p.domaines[0])||defDomaine;
-        const dOptsG=D.domaines.map(d=>`<option value="${d.id}" ${gDomaine===d.id?'selected':''}>${d.name}</option>`).join('');
         const paidSummary=id&&pg.nights&&Object.keys(pg.nights).length?`<div style="margin-top:8px">${Object.entries(pg.nights).sort((a,b)=>a[0].localeCompare(b[0])).map(([d,v])=>`<span class="pill" style="background:${v.paid?'#E8F3E0':'#FCEBEB'};color:${v.paid?'#27500A':'#791F1F'};margin-right:4px;margin-bottom:4px;display:inline-block;cursor:pointer" onclick="toggleGardeNightPaid('${id}','${p.id}','${d}')" title="Cliquer pour ${v.paid?'marquer non payé':'marquer payé'}">${ds(d)} · ${money(gardeRate(v.duree))} ${v.paid?'✓':'✗'}</span>`).join('')}</div>`:'';
         encart=`<div class="presta-encart" id="penc-${p.id}" style="display:${checked?'block':'none'};margin:4px 0 10px 24px;padding:10px;background:#f5f4f1;border-radius:8px">
-          <div class="field" style="margin-bottom:8px"><label>Lieu</label><select id="pgdom-${p.id}">${dOptsG}</select></div>
+          <input type="hidden" id="pgdom-${p.id}" value="${defDomaine||(r&&r.domaine)||''}">
           <div id="pgnights-${p.id}">${gardNightsHtmlFor(p.id,initNights,pg.nights||{})}</div>
           ${paidSummary}
         </div>`;
