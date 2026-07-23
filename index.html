@@ -2105,7 +2105,7 @@ function renderGardiennageList(){
     Object.entries(r.prestaGarde||{}).forEach(([pid,pg])=>{
       const who=gPre(pid);
       Object.entries(pg.nights||{}).forEach(([date,v])=>{
-        rows.push({date,pid,who:who.name||'—',domaine:pg.domaine,duree:v.duree,paid:v.paid,client:displayClientName(r)||'—',resaId:r.id});
+        rows.push({date,pid,who:who.name||'—',domaine:r.domaine,duree:v.duree,paid:v.paid,client:displayClientName(r)||'—',resaId:r.id});
       });
     });
   });
@@ -2663,7 +2663,7 @@ function renderPrestaDetailAdmin(p){
     const rows=[];
     D.reservations.filter(r=>r.status!=='annulé').forEach(r=>{
       const pg=(r.prestaGarde||{})[p.id];if(!pg)return;
-      Object.entries(pg.nights||{}).forEach(([date,v])=>{if(inMonth(date))rows.push({date,duree:v.duree,paid:v.paid,payMethod:v.payMethod||'',comment:v.comment||'',resaId:r.id,client:displayClientName(r)||'—',domaine:pg.domaine,source:'resa'});});
+      Object.entries(pg.nights||{}).forEach(([date,v])=>{if(inMonth(date))rows.push({date,duree:v.duree,paid:v.paid,payMethod:v.payMethod||'',comment:v.comment||'',resaId:r.id,client:displayClientName(r)||'—',domaine:r.domaine,source:'resa'});});
     });
     (D.gardeSchedule||[]).filter(x=>x.pid===p.id&&inMonth(x.date)).forEach(x=>rows.push({date:x.date,duree:x.duree,paid:x.paid,payMethod:x.payMethod||'',comment:x.comment||'',resaId:null,schedId:x.id,client:'— (planning)',domaine:x.domaine,source:'planning'}));
     rows.sort((a,b)=>a.date.localeCompare(b.date));
@@ -4366,7 +4366,7 @@ function renderGardePlanningCalendar(p){
   const nightsByDate={};
   D.reservations.filter(r=>r.status!=='annulé').forEach(r=>{
     const pg=(r.prestaGarde||{})[p.id];if(!pg)return;
-    Object.entries(pg.nights||{}).forEach(([date,v])=>{nightsByDate[date]={domaine:pg.domaine,duree:v.duree};});
+    Object.entries(pg.nights||{}).forEach(([date,v])=>{nightsByDate[date]={domaine:r.domaine,duree:v.duree};});
   });
   (D.gardeSchedule||[]).filter(x=>x.pid===p.id).forEach(x=>{nightsByDate[x.date]={domaine:x.domaine,duree:x.duree};});
   let gridHtml=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].map(d=>`<div class="cal-dow">${d}</div>`).join('');
@@ -4392,7 +4392,7 @@ function renderPrestaGardePersonnel(p){
   D.reservations.filter(r=>r.status!=='annulé').forEach(r=>{
     const pg=(r.prestaGarde||{})[p.id];if(!pg)return;
     Object.entries(pg.nights||{}).forEach(([date,v])=>{
-      rows.push({date,domaine:pg.domaine,duree:v.duree,paid:v.paid,comment:v.comment||'',client:displayClientName(r)||'—',resaId:r.id});
+      rows.push({date,domaine:r.domaine,duree:v.duree,paid:v.paid,comment:v.comment||'',client:displayClientName(r)||'—',resaId:r.id});
     });
   });
   (D.gardeSchedule||[]).filter(x=>x.pid===p.id).forEach(x=>rows.push({date:x.date,domaine:x.domaine,duree:x.duree,paid:x.paid,comment:x.comment||'',client:'',resaId:null}));
