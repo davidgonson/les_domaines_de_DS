@@ -567,6 +567,13 @@ function runMigrations(){
   if(!D.dominiqueSchedule)D.dominiqueSchedule=[];
   if(!D.gardeSchedule)D.gardeSchedule=[];
   if(!D.messages)D.messages=[];
+  // Corrige les anciennes réservations où le domaine du gardiennage enregistré ne correspond
+  // plus au domaine réel/actuel de la réservation (ex : la réservation a changé de domaine
+  // après coup). Le lieu du gardiennage doit toujours suivre le domaine de la réservation.
+  (D.reservations||[]).forEach(r=>{
+    if(!r.prestaGarde||!r.domaine)return;
+    Object.values(r.prestaGarde).forEach(pg=>{if(pg&&pg.domaine!==r.domaine)pg.domaine=r.domaine;});
+  });
   (D.admins||[]).forEach(a=>{if(a.name==='Gestionnaire')a.name='Svitlana';});
   if(!D.admins)D.admins=[];
   if(!D.admins.some(a=>a.name==='Svitlana')&&!D.admins.some(a=>a.id==='a2'))D.admins.push({id:'a2',name:'Svitlana',pin:'2024',tel:'0630868569'});
